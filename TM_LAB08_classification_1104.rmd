@@ -1,0 +1,113 @@
+---
+title: "TM_LAB07_KNN_etc"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 2
+    toc_float: true
+---
+
+# 01. 텍스트 분류 분석
+ * K-NN(nearest neighbor) 분류
+ * 의사결정트리(decision tree) 분류
+ * SVM(support vector machine) 분류
+ * 나이브 베이즈(Naive Bayes) 분류 
+
+
+## 01. KNN 분류를 위한 필요한 패키지를 설치
+ * ggvis 탐색 데이터 분석을 위해 대화식 그래픽을 쉽게 만들 수 있게 하는 것.
+ * ggvi는 ggplot2와 비슷한 기본 이론을 가지고 있다. 단, 약간 다르게 표현된다.
+```{r}
+## 산점도 시각화 패키지  
+# install.packages("ggvis")
+library(ggvis)
+
+## KNN 분류를 위한 패키지 설치
+# install.packages("class")
+library(class)
+
+## 분류 예측 값 비교 패키지 설치하기 
+# install.packages("gmodels")
+library(gmodels)
+
+search()
+```
+ 
+## 02. 관찰 데이터 준비
+ * IRIS 데이터 셋 (setosa, virginica, versicolor) 
+ * 150개의 레코드로 구성된 데이터 셋
+ * 붓꽃의 종류에 따라 
+   - 꽃받침 길이(Sepal.length)
+   - 꽃받침 너비(Sepal.Width)
+   - 꽃잎의 길이(Petal.Length)
+   - 꽃잎의 너비(Petal.Width)
+
+```{r}
+iris
+```
+
+## 03. R 패키지에 로딩된 데이터 시각화
+ * 시각화 결과를 통해 확인할 수 있는 내용.
+ * 모든 종의 붓꽃에 대해 꽃잎의 길이와 너비는 비례 관계에 있음. 
+ * ggvis는 가로를 줄이기 위해 %>% 를 사용한다. 
+```{r}
+iris %>% 
+   ggvis(~Sepal.Length, ~Sepal.Width, fill=~Species) %>%
+   layer_points()
+```
+```{r}
+iris %>% 
+   ggvis(~Petal.Length, ~Petal.Width, fill=~Species) %>%
+   layer_points()
+```
+
+## 04. 데이터 요약 및 정규화
+ * summary()를 통해 데이터를 확인하면 4개의 속성의 min, max의 값의 범위가 다르다. 
+ * 값의 범위가 KNN 분류에 미치는 영향을 최소화하기 위해 값을 0~1사이의 값으로 정규화를 수행
+
+### 04-1 정규화 함수 정의 
+```{r}
+normalize <- function(x) {
+  num <- x-min(x)            # 현재값에서 최소값 빼기 
+  denom <- max(x) - min(x)   # 최소값에서 최소값 빼기 
+  return (num / denom) # num/denom 값 반환
+}
+```
+
+### 04-2 정규화 시키고 summary 값 확인
+ * 1열부터 4열까지 정규화 함수 수행 후, 이를 data.frame 형태로 생성.
+```{r}
+iris_norm <- as.data.frame(lapply(iris[1:4], normalize))
+summary(iris_norm)
+
+```
+
+## 05. IRIS를 훈련 데이터셋과 테스트 데이터 셋으로 구분
+ * R 패키지의 랜덤 수를 발생시키기 위한 씨드 설정
+ * 데이터을 7:3으로 train과 test데이터 셋으로 분류
+ * 분류하려고 하는 목적 변수는 각각 iris_tr_target, iris_test_target로 생성 
+ 
+```{r}
+set.seed(1234)
+idx <- sample(1:150, nrow(iris_norm)*0.7, replace=F)
+tr <- iris_norm[idx,]
+test <- iris_norm[-idx,]
+
+iris_tr_target=iris[idx, 5]
+iris_test_target=iris[-idx, 5]
+```
+
+## 06. knn 모델 만들기
+ * k=3으로 3개의 데이터를 이용하여 확인 후, 예측을 수행
+ * iris_test_target은 나중에 예측값이 얼마나 잘 예측했는지 확인할 때 사용. 
+```{r}
+iris_pred <- knn(train=tr, test=test, cl=iris_tr_target, k=3)
+iris_pred
+```
+
+## 07. 확인하기
+ * 예측값과 실제값(test)의 값 비교를 통해 맞고 틀린 것을 확인
+```{r}
+CrossTable(x=iris_test_target, y=iris_pred, prop.chisq = FALSE)
+```
+
